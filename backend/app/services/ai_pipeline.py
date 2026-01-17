@@ -7,9 +7,12 @@ This module handles:
 """
 
 import asyncio
+import os
+import uuid
 from datetime import date
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+import httpx
 
 from ..database import async_session_maker
 from ..models.lesson import Lesson, LessonStatus
@@ -77,18 +80,41 @@ async def transcribe_audio(audio_path: str) -> str:
     # In production, this would use OpenAI Whisper API
     await asyncio.sleep(2)  # Simulate processing time
 
+    local_path = audio_path
+    if audio_path.startswith("http://") or audio_path.startswith("https://"):
+        os.makedirs(settings.upload_dir, exist_ok=True)
+        tmp_name = f"audio_{uuid.uuid4()}.bin"
+        local_path = os.path.join(settings.upload_dir, tmp_name)
+        async with httpx.AsyncClient(timeout=60) as client:
+            resp = await client.get(audio_path)
+            resp.raise_for_status()
+            with open(local_path, "wb") as f:
+                f.write(resp.content)
+
     # Check if we have an actual OpenAI key
     if settings.openai_api_key and settings.openai_api_key.startswith("sk-"):
         try:
             import openai
             client = openai.OpenAI(api_key=settings.openai_api_key)
-            with open(audio_path, "rb") as audio_file:
+            with open(local_path, "rb") as audio_file:
                 response = client.audio.transcriptions.create(
                     model="whisper-1",
                     file=audio_file,
                 )
                 return response.text
         except Exception:
+            pass
+        finally:
+            if local_path != audio_path:
+                try:
+                    os.remove(local_path)
+                except OSError:
+                    pass
+
+    if local_path != audio_path:
+        try:
+            os.remove(local_path)
+        except OSError:
             pass
 
     # Simulated transcript for demo

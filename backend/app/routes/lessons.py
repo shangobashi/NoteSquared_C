@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
+import os
 
 from ..database import get_db
 from ..models.user import User
@@ -20,6 +21,29 @@ from ..config import get_settings
 
 router = APIRouter(prefix="/lessons", tags=["lessons"])
 settings = get_settings()
+
+
+def _upload_to_blob(local_path: str, blob_path: str) -> str | None:
+    """Upload a local file to Vercel Blob and return the public URL."""
+    token = os.getenv("BLOB_READ_WRITE_TOKEN")
+    if not token:
+        return None
+    try:
+        from vercel import blob
+    except Exception:
+        return None
+
+    uploaded = blob.upload_file(
+        local_path=local_path,
+        path=blob_path,
+        access="public",
+    )
+    for key in ("url", "download_url", "downloadUrl"):
+        if hasattr(uploaded, key):
+            return getattr(uploaded, key)
+        if isinstance(uploaded, dict) and key in uploaded:
+            return uploaded[key]
+    return None
 
 
 class LessonCreate(BaseModel):
@@ -142,15 +166,23 @@ async def upload_audio(
             detail=f"Unsupported audio format. Allowed: m4a, mp3, wav, webm",
         )
 
-    # Save audio file
+    # Save audio file to a temp location for processing and optional blob upload
     os.makedirs(settings.upload_dir, exist_ok=True)
     file_extension = audio.filename.split(".")[-1] if audio.filename else "m4a"
     file_name = f"{lesson_id}_{uuid.uuid4()}.{file_extension}"
-    file_path = os.path.join(settings.upload_dir, file_name)
+    local_path = os.path.join(settings.upload_dir, file_name)
 
     content = await audio.read()
-    with open(file_path, "wb") as f:
+    with open(local_path, "wb") as f:
         f.write(content)
+
+    blob_url = _upload_to_blob(local_path, f"lessons/{lesson_id}/{file_name}")
+    file_path = blob_url or local_path
+    if blob_url:
+        try:
+            os.remove(local_path)
+        except OSError:
+            pass
 
     # Update lesson
     lesson.audio_url = file_path
