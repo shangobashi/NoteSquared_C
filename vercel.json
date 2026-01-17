@@ -3,9 +3,6 @@
   "installCommand": "cd frontend && npm install",
   "buildCommand": "cd frontend && npm run build",
   "outputDirectory": "frontend/dist",
-  "crons": [
-    { "path": "/v1/cron/ping-worker", "schedule": "*/10 * * * *" }
-  ],
   "rewrites": [
     { "source": "/v1/(.*)", "destination": "/api/index.py" },
     { "source": "/health", "destination": "/api/index.py" },
