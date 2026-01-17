@@ -49,7 +49,7 @@ async def _signed_supabase_url(bucket: str, object_path: str, expires_in: int = 
         signed = data.get("signedURL") or data.get("signedUrl")
         if not signed:
             return None
-        return f"{settings.supabase_url}{signed}"
+        return f"{settings.supabase_url}/storage/v1{signed}"
 
 
 async def _transcribe_via_worker(audio_url: str) -> str | None:
