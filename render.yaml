@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: notesquared-whisper
+    env: python
+    region: frankfurt
+    plan: free
+    rootDir: whisper_worker
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: MODEL_SIZE
+        value: tiny
+      - key: WORKER_AUTH_TOKEN
+        sync: false

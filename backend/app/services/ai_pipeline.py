@@ -22,6 +22,51 @@ from ..config import get_settings
 settings = get_settings()
 
 
+def _parse_supabase_path(value: str) -> tuple[str, str] | None:
+    if not value.startswith("supabase://"):
+        return None
+    path = value.replace("supabase://", "", 1)
+    if "/" not in path:
+        return None
+    bucket, object_path = path.split("/", 1)
+    return bucket, object_path
+
+
+async def _signed_supabase_url(bucket: str, object_path: str, expires_in: int = 3600) -> str | None:
+    if not (settings.supabase_url and settings.supabase_service_role_key):
+        return None
+    url = f"{settings.supabase_url}/storage/v1/object/sign/{bucket}/{object_path}"
+    headers = {
+        "Authorization": f"Bearer {settings.supabase_service_role_key}",
+        "apikey": settings.supabase_service_role_key,
+        "Content-Type": "application/json",
+    }
+    async with httpx.AsyncClient(timeout=30) as client:
+        resp = await client.post(url, headers=headers, json={"expiresIn": expires_in})
+        if resp.status_code != 200:
+            return None
+        data = resp.json()
+        signed = data.get("signedURL") or data.get("signedUrl")
+        if not signed:
+            return None
+        return f"{settings.supabase_url}{signed}"
+
+
+async def _transcribe_via_worker(audio_url: str) -> str | None:
+    if not settings.transcription_worker_url:
+        return None
+    headers = {}
+    if settings.transcription_worker_token:
+        headers["X-Worker-Token"] = settings.transcription_worker_token
+    payload = {"audio_url": audio_url}
+    async with httpx.AsyncClient(timeout=300) as client:
+        resp = await client.post(f"{settings.transcription_worker_url.rstrip('/')}/transcribe", json=payload, headers=headers)
+        if resp.status_code != 200:
+            return None
+        data = resp.json()
+        return data.get("text")
+
+
 async def process_lesson_pipeline(lesson_id: str, student_name: str, instrument: str):
     """Process a lesson through the full AI pipeline."""
     async with async_session_maker() as db:
@@ -79,6 +124,16 @@ async def transcribe_audio(audio_path: str) -> str:
     # For demo purposes, simulate transcription
     # In production, this would use OpenAI Whisper API
     await asyncio.sleep(2)  # Simulate processing time
+
+    supabase_parts = _parse_supabase_path(audio_path)
+    if supabase_parts:
+        signed = await _signed_supabase_url(*supabase_parts)
+        if signed and settings.transcription_worker_url:
+            worker_text = await _transcribe_via_worker(signed)
+            if worker_text:
+                return worker_text
+        if signed:
+            audio_path = signed
 
     local_path = audio_path
     if audio_path.startswith("http://") or audio_path.startswith("https://"):

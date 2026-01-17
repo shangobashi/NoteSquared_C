@@ -52,6 +52,15 @@ class Settings(BaseSettings):
     # OpenAI (optional for demo)
     openai_api_key: str = ""
 
+    # Supabase Storage (optional)
+    supabase_url: str = ""
+    supabase_service_role_key: str = ""
+    supabase_bucket: str = ""
+
+    # Transcription worker (optional)
+    transcription_worker_url: str = ""
+    transcription_worker_token: str = ""
+
     # CORS
     cors_origins: list[str] = [
         "http://localhost:5173",

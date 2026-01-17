@@ -1,6 +1,7 @@
 """Lesson management routes."""
 
 import os
+import httpx
 import uuid
 from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, BackgroundTasks
@@ -23,27 +24,22 @@ router = APIRouter(prefix="/lessons", tags=["lessons"])
 settings = get_settings()
 
 
-def _upload_to_blob(local_path: str, blob_path: str) -> str | None:
-    """Upload a local file to Vercel Blob and return the public URL."""
-    token = os.getenv("BLOB_READ_WRITE_TOKEN")
-    if not token:
-        return None
-    try:
-        from vercel import blob
-    except Exception:
+def _upload_to_supabase(local_path: str, object_path: str, content_type: str) -> str | None:
+    """Upload a local file to Supabase Storage (private) and return storage path."""
+    if not (settings.supabase_url and settings.supabase_service_role_key and settings.supabase_bucket):
         return None
 
-    uploaded = blob.upload_file(
-        local_path=local_path,
-        path=blob_path,
-        access="public",
-    )
-    for key in ("url", "download_url", "downloadUrl"):
-        if hasattr(uploaded, key):
-            return getattr(uploaded, key)
-        if isinstance(uploaded, dict) and key in uploaded:
-            return uploaded[key]
-    return None
+    url = f"{settings.supabase_url}/storage/v1/object/{settings.supabase_bucket}/{object_path}"
+    headers = {
+        "Authorization": f"Bearer {settings.supabase_service_role_key}",
+        "apikey": settings.supabase_service_role_key,
+        "Content-Type": content_type or "application/octet-stream",
+    }
+    with open(local_path, "rb") as f:
+        resp = httpx.post(url, headers=headers, content=f.read(), timeout=60)
+    if resp.status_code not in (200, 201):
+        return None
+    return f"supabase://{settings.supabase_bucket}/{object_path}"
 
 
 class LessonCreate(BaseModel):
@@ -176,16 +172,20 @@ async def upload_audio(
     with open(local_path, "wb") as f:
         f.write(content)
 
-    blob_url = _upload_to_blob(local_path, f"lessons/{lesson_id}/{file_name}")
-    file_path = blob_url or local_path
-    if blob_url:
+    storage_path = _upload_to_supabase(
+        local_path,
+        f"lessons/{lesson_id}/{file_name}",
+        audio.content_type or "application/octet-stream",
+    ) or local_path
+
+    if storage_path != local_path:
         try:
             os.remove(local_path)
         except OSError:
             pass
 
     # Update lesson
-    lesson.audio_url = file_path
+    lesson.audio_url = storage_path
     lesson.status = LessonStatus.UPLOADED.value
     await db.commit()
     await db.refresh(lesson)
