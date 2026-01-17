@@ -187,7 +187,7 @@ async def upload_audio(
     # Update lesson
     lesson.audio_url = file_path
     lesson.status = LessonStatus.UPLOADED.value
-    await db.flush()
+    await db.commit()
     await db.refresh(lesson)
 
     # Start background processing
