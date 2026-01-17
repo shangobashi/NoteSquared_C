@@ -1,0 +1,16 @@
+[run]
+source = app
+concurrency = greenlet,thread
+branch = True
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    pass
+    raise HTTPException
+omit =
+    */tests/*
+    */__pycache__/*

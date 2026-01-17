@@ -1,0 +1,76 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom scrollbar for dark mode */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1E293B;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #475569;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #64748B;
+}
+
+/* Smooth transitions */
+* {
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+/* Animation for pulsing record button */
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+}
+
+.animate-pulse-ring {
+  animation: pulse-ring 1.5s ease-out infinite;
+}
+
+/* Markdown content styles */
+.markdown-content h1 {
+  @apply text-2xl font-bold mb-4 text-brand-light;
+}
+
+.markdown-content h2 {
+  @apply text-xl font-semibold mb-3 mt-6 text-dark-text-primary;
+}
+
+.markdown-content h3 {
+  @apply text-lg font-medium mb-2 mt-4 text-dark-text-primary;
+}
+
+.markdown-content p {
+  @apply mb-3 text-dark-text-secondary;
+}
+
+.markdown-content ul {
+  @apply list-disc list-inside mb-3 space-y-1;
+}
+
+.markdown-content li {
+  @apply text-dark-text-secondary;
+}
+
+.markdown-content strong {
+  @apply text-dark-text-primary font-semibold;
+}
