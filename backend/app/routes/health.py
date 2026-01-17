@@ -15,7 +15,7 @@ async def health_check():
     return {"status": "healthy", "app": "NoteÂ² API"}
 
 
-@router.get("/cron/ping-worker")
+@router.get("/v1/cron/ping-worker")
 async def ping_worker():
     """Keep the transcription worker warm."""
     if not settings.transcription_worker_url:
