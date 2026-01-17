@@ -59,12 +59,19 @@ async def _transcribe_via_worker(audio_url: str) -> str | None:
     if settings.transcription_worker_token:
         headers["X-Worker-Token"] = settings.transcription_worker_token
     payload = {"audio_url": audio_url}
-    async with httpx.AsyncClient(timeout=300) as client:
-        resp = await client.post(f"{settings.transcription_worker_url.rstrip('/')}/transcribe", json=payload, headers=headers)
-        if resp.status_code != 200:
-            return None
-        data = resp.json()
-        return data.get("text")
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.post(
+                f"{settings.transcription_worker_url.rstrip('/')}/transcribe",
+                json=payload,
+                headers=headers,
+            )
+            if resp.status_code != 200:
+                return None
+            data = resp.json()
+            return data.get("text")
+    except Exception:
+        return None
 
 
 async def process_lesson_pipeline(lesson_id: str, student_name: str, instrument: str):
