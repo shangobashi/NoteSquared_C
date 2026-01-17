@@ -21,7 +21,7 @@ async def lifespan(app: FastAPI):
     """Application lifespan events."""
     # Startup
     await init_db()
-    os.makedirs("uploads", exist_ok=True)
+    os.makedirs(settings.upload_dir, exist_ok=True)
     yield
     # Shutdown
 
@@ -43,8 +43,8 @@ app.add_middleware(
 )
 
 # Mount static files for uploads
-if os.path.exists("uploads"):
-    app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+if os.path.exists(settings.upload_dir):
+    app.mount("/uploads", StaticFiles(directory=settings.upload_dir), name="uploads")
 
 # Include routers
 app.include_router(health_router)

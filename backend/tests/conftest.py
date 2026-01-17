@@ -2,10 +2,16 @@
 
 import asyncio
 import os
+import sys
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+
+# Ensure backend package is importable when running from repo root.
+BACKEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if BACKEND_DIR not in sys.path:
+    sys.path.insert(0, BACKEND_DIR)
 
 # Set test environment
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///./test.db"

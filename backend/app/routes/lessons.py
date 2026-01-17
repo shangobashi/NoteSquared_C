@@ -16,8 +16,10 @@ from ..models.lesson import Lesson, LessonStatus
 from ..models.output import Output, OutputType
 from ..auth import get_current_user
 from ..services.ai_pipeline import process_lesson_pipeline
+from ..config import get_settings
 
 router = APIRouter(prefix="/lessons", tags=["lessons"])
+settings = get_settings()
 
 
 class LessonCreate(BaseModel):
@@ -141,10 +143,10 @@ async def upload_audio(
         )
 
     # Save audio file
-    os.makedirs("uploads", exist_ok=True)
+    os.makedirs(settings.upload_dir, exist_ok=True)
     file_extension = audio.filename.split(".")[-1] if audio.filename else "m4a"
     file_name = f"{lesson_id}_{uuid.uuid4()}.{file_extension}"
-    file_path = f"uploads/{file_name}"
+    file_path = os.path.join(settings.upload_dir, file_name)
 
     content = await audio.read()
     with open(file_path, "wb") as f:
